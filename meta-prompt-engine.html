@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="version" content="1.0.1">
 <title>Meta-Prompt Engine</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -367,7 +368,7 @@
 <header>
   <div class="eyebrow">BleedingCodes / meta-prompt-engine</div>
   <h1>Meta<span>.</span>Prompt<span>.</span>Engine</h1>
-  <p class="subtitle">Describe a task. Get a structurally engineered prompt — with visible architecture — ready to chain into the next session or run in parallel. Works with Claude, GPT-4, and Gemini.</p>
+  <p class="subtitle">Describe a task. Get a structurally engineered prompt — with visible architecture — ready to chain into the next session or run in parallel. Works with Claude, GPT-4o, and Gemini.</p>
 </header>
 
 <div class="card">
@@ -578,12 +579,22 @@ document.querySelectorAll('.tab').forEach(tab => {
 
 // ── copy ──
 document.getElementById('copy-btn').addEventListener('click', () => {
-  navigator.clipboard.writeText(rawPromptText).then(() => {
-    const btn = document.getElementById('copy-btn');
-    btn.textContent = 'Copied';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
-  });
+  const btn = document.getElementById('copy-btn');
+  if (!navigator.clipboard) {
+    btn.textContent = 'No clipboard (use HTTPS)';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2500);
+    return;
+  }
+  navigator.clipboard.writeText(rawPromptText)
+    .then(() => {
+      btn.textContent = 'Copied';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+    })
+    .catch(() => {
+      btn.textContent = 'Copy failed';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+    });
 });
 
 // ── system prompt builder ──
@@ -674,11 +685,16 @@ async function callClaude(apiKey, systemPrompt, userMessage, onChunk) {
       if (data === '[DONE]') continue;
       try {
         const evt = JSON.parse(data);
+        if (evt.type === 'error') {
+          throw new Error(evt.error?.message || `Anthropic stream error (${evt.error?.type || 'unknown'})`);
+        }
         if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
           fullText += evt.delta.text;
           onChunk(fullText);
         }
-      } catch {}
+      } catch (e) {
+        if (e.message?.startsWith('Anthropic stream error') || e.message?.includes('stream error')) throw e;
+      }
     }
   }
   return fullText;
@@ -718,9 +734,14 @@ async function callOpenAI(apiKey, systemPrompt, userMessage, onChunk) {
       if (data === '[DONE]') continue;
       try {
         const evt = JSON.parse(data);
+        if (evt.error) {
+          throw new Error(evt.error?.message || `OpenAI stream error (${evt.error?.code || 'unknown'})`);
+        }
         const delta = evt.choices?.[0]?.delta?.content;
         if (delta) { fullText += delta; onChunk(fullText); }
-      } catch {}
+      } catch (e) {
+        if (e.message?.startsWith('OpenAI stream error') || e.message?.includes('stream error')) throw e;
+      }
     }
   }
   return fullText;
@@ -753,9 +774,14 @@ async function callGemini(apiKey, systemPrompt, userMessage, onChunk) {
       const data = line.slice(6).trim();
       try {
         const evt = JSON.parse(data);
+        if (!evt.candidates && evt.error) {
+          throw new Error(evt.error?.message || `Gemini stream error (code ${evt.error?.code || 'unknown'})`);
+        }
         const text = evt.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text) { fullText += text; onChunk(fullText); }
-      } catch {}
+      } catch (e) {
+        if (e.message?.startsWith('Gemini stream error') || e.message?.includes('stream error')) throw e;
+      }
     }
   }
   return fullText;
@@ -909,6 +935,8 @@ document.getElementById('generate-btn').addEventListener('click', async () => {
       fullText = await callOpenAI(apiKey, systemPrompt, userMessage, onChunk);
     } else if (model === 'gemini') {
       fullText = await callGemini(apiKey, systemPrompt, userMessage, onChunk);
+    } else {
+      throw new Error(`Unknown model: ${model}`);
     }
 
     const parsed = parseJSON(fullText);
