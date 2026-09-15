@@ -14,6 +14,8 @@ You provide a task description and configure:
 - **Target model** — Claude, GPT-4o, Gemini, or Model-Agnostic
 - **Components** — which structural blocks to include in the output
 
+Guard rails are opt-in — deselected by default. Enable them when you need explicit exclusions and failure-mode constraints in the generated prompt.
+
 The engine sends a meta-prompt to your chosen model — a prompt that instructs it to reason about prompt architecture and return a structured result. The output is displayed two ways: an anatomy view where each block is labeled with the engineering decision behind it, and a raw view with the full prompt ready to copy.
 
 Model-Agnostic mode requires no API key. It assembles a structured prompt locally from the meta-prompt architecture without making any network requests.
