@@ -12,9 +12,7 @@ You provide a task description and configure:
 - **Domain** — General, Code, Writing/Docs, Data, Research, System Design, Creative, QA
 - **Prompt use** — Follow-up, Parallel, Decompose, Review, or Chain
 - **Target model** — Claude, GPT-4o, Gemini, or Model-Agnostic
-- **Components** — which structural blocks to include in the output
-
-Guard rails are opt-in — deselected by default. Enable them when you need explicit exclusions and failure-mode constraints in the generated prompt.
+- **Components** — which structural blocks to include in the output (Guard rails are off by default and must be enabled per generation)
 
 The engine sends a meta-prompt to your chosen model — a prompt that instructs it to reason about prompt architecture and return a structured result. The output is displayed two ways: an anatomy view where each block is labeled with the engineering decision behind it, and a raw view with the full prompt ready to copy.
 
@@ -80,8 +78,6 @@ Drag `meta-prompt-engine.html` to [netlify.com/drop](https://netlify.com/drop) o
 
 **Browser requirements:** Chrome, Firefox, Safari, or Edge — any version from the last two years. Requires `fetch` with streaming (`ReadableStream`) support, which all modern browsers provide.
 
-![meta-prompt-engine screenshot](meta-prompt-engine.png)
-
 ---
 
 ## Streaming
@@ -99,7 +95,6 @@ All three API callers implement SSE streaming via `ReadableStream`. The response
 ```
 meta-prompt-engine/
 ├── meta-prompt-engine.html   # entire application — HTML, CSS, JS in one file
-├── meta-prompt-engine.png    # UI screenshot
 └── README.md
 ```
 
