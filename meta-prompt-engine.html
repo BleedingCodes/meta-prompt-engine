@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meta-Prompt Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0a0f;
+    --surface:   #111118;
+    --border:    #1e1e2e;
+    --border-hi: #2e2e4e;
+    --accent:    #7c6af7;
+    --accent-lo: rgba(124,106,247,0.12);
+    --green:     #3dffa0;
+    --text:      #e2e2f0;
+    --muted:     #6b6b8a;
+    --label:     #9898b8;
+    --danger:    #ff6b8a;
+    --warn:      #ffb347;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px 80px;
+  }
+
+  /* header */
+  header { width: 100%; max-width: 760px; margin-bottom: 48px; }
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: clamp(22px, 4vw, 36px);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+  h1 span { color: var(--accent); }
+  .subtitle { margin-top: 14px; font-size: 14px; color: var(--muted); line-height: 1.6; max-width: 540px; }
+
+  /* cards */
+  .card {
+    width: 100%;
+    max-width: 760px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 16px;
+  }
+  .section-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-bar .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .section-bar span {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--label);
+  }
+  .input-zone { padding: 20px; }
+  .field-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px; }
+  label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  select, input[type="text"], input[type="password"] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+  }
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b6b8a'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+    cursor: pointer;
+  }
+  select:focus, input:focus { border-color: var(--accent); }
+  select option { background: #111118; }
+  textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 300;
+    font-size: 13px;
+    line-height: 1.65;
+    padding: 12px 14px;
+    resize: vertical;
+    min-height: 110px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder, input::placeholder { color: var(--muted); }
+
+  /* API key row */
+  #key-row { margin-bottom: 12px; }
+  #key-row.hidden { display: none; }
+  .key-wrap { position: relative; }
+  .key-wrap input { padding-right: 80px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.04em; }
+  .key-toggle {
+    position: absolute;
+    right: 10px; top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    padding: 2px 6px;
+  }
+  .key-toggle:hover { color: var(--label); }
+  .key-note {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .key-note a { color: var(--accent); text-decoration: none; }
+  .key-note a:hover { text-decoration: underline; }
+
+  /* model badges */
+  .model-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 2px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .badge-claude  { background: rgba(124,106,247,0.15); color: var(--accent); }
+  .badge-openai  { background: rgba(61,255,160,0.1);   color: var(--green); }
+  .badge-google  { background: rgba(255,180,60,0.12);  color: var(--warn); }
+  .badge-none    { background: rgba(150,150,170,0.1);  color: var(--muted); }
+
+  /* agnostic note */
+  #agnostic-note {
+    padding: 12px 14px;
+    background: rgba(150,150,180,0.06);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+  #agnostic-note.hidden { display: none; }
+
+  /* toggles */
+  .toggles { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 7px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+  }
+  .toggle.active { border-color: var(--accent); background: var(--accent-lo); }
+  .toggle-check {
+    width: 12px; height: 12px;
+    border: 1px solid var(--border-hi);
+    border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .toggle.active .toggle-check { background: var(--accent); border-color: var(--accent); }
+  .toggle-check svg { display: none; }
+  .toggle.active .toggle-check svg { display: block; }
+  .toggle span { font-size: 12px; color: var(--label); }
+  .toggle.active span { color: var(--text); }
+
+  /* btn row */
+  .btn-row {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  #generate-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    padding: 10px 22px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  #generate-btn:hover { opacity: 0.88; }
+  #generate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .status-text { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); }
+  .status-text.running { color: var(--accent); }
+  .status-text.done    { color: var(--green); }
+  .status-text.err     { color: var(--danger); }
+
+  /* output card */
+  #output-card { display: none; }
+  #output-card.visible { display: block; }
+  .output-tabs { display: flex; border-bottom: 1px solid var(--border); }
+  .tab {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 12px 20px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* anatomy */
+  .anatomy { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .block { border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
+  .block-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .block-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    font-weight: 500;
+  }
+  .tag-role    { background: rgba(124,106,247,0.2); color: var(--accent); }
+  .tag-context { background: rgba(61,255,160,0.12); color: var(--green); }
+  .tag-task    { background: rgba(255,200,80,0.12); color: #ffc850; }
+  .tag-format  { background: rgba(80,160,255,0.12); color: #60b0ff; }
+  .tag-chain   { background: rgba(255,107,138,0.12); color: var(--danger); }
+  .tag-guard   { background: rgba(160,100,255,0.15); color: #c080ff; }
+  .block-label { font-size: 11px; color: var(--muted); font-style: italic; }
+  .block-body  { padding: 14px; font-size: 13px; line-height: 1.7; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+
+  /* raw */
+  .raw-prompt-wrap { padding: 20px; position: relative; }
+  .raw-prompt {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 480px;
+    overflow-y: auto;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 32px; right: 32px;
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    border-radius: 3px;
+    color: var(--label);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+  /* footer meta */
+  .output-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .meta-pill { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .meta-pill strong { color: var(--label); font-weight: 500; }
+
+  /* skeleton */
+  .skel-block { background: var(--border); border-radius: 3px; animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }
+
+  /* stream cursor */
+  .cursor { display: inline-block; width: 7px; height: 13px; background: var(--accent); vertical-align: text-bottom; animation: blink 0.9s step-end infinite; margin-left: 2px; }
+  @keyframes blink { 50%{opacity:0} }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+
+  @media (max-width: 520px) {
+    body { padding: 32px 16px 60px; }
+    .field-row { flex-direction: column; }
+    .copy-btn { position: static; margin-top: 10px; }
+    .raw-prompt-wrap { display: flex; flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">BleedingCodes / meta-prompt-engine</div>
+  <h1>Meta<span>.</span>Prompt<span>.</span>Engine</h1>
+  <p class="subtitle">Describe a task. Get a structurally engineered prompt — with visible architecture — ready to chain into the next session or run in parallel. Works with Claude, GPT-4, and Gemini.</p>
+</header>
+
+<div class="card">
+  <div class="section-bar"><div class="dot"></div><span>Task Input</span></div>
+  <div class="input-zone">
+
+    <div class="field-row">
+      <div class="field">
+        <label>Task Domain</label>
+        <select id="domain">
+          <option value="general">General / Any</option>
+          <option value="code">Software & Code</option>
+          <option value="writing">Writing & Docs</option>
+          <option value="data">Data & Analysis</option>
+          <option value="research">Research</option>
+          <option value="system">System Design</option>
+          <option value="creative">Creative</option>
+          <option value="qa">QA & Testing</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Prompt Use</label>
+        <select id="use-case">
+          <option value="followup">Follow-up (after this task)</option>
+          <option value="parallel">Parallel (runs alongside)</option>
+          <option value="decompose">Decompose (break task down)</option>
+          <option value="review">Review (critique output)</option>
+          <option value="chain">Chain (feeds into next step)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Target Model</label>
+        <select id="model-target">
+          <option value="claude">Claude (Anthropic)</option>
+          <option value="gpt4">GPT-4o / o-series (OpenAI)</option>
+          <option value="gemini">Gemini 2.0 Flash (Google)</option>
+          <option value="agnostic">Model-Agnostic</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- contextual API key input -->
+    <div id="key-row">
+      <div class="field">
+        <label id="key-label">API Key</label>
+        <div class="key-wrap">
+          <input type="password" id="api-key" placeholder="Paste your API key — stays in memory only, never sent anywhere else" autocomplete="off" spellcheck="false">
+          <button class="key-toggle" id="key-toggle-btn" type="button">show</button>
+        </div>
+        <div class="key-note" id="key-note"></div>
+      </div>
+    </div>
+
+    <!-- agnostic note -->
+    <div id="agnostic-note" class="hidden">
+      Model-Agnostic mode generates a prompt written in plain language with no model-specific syntax. No API call is made — the engineered prompt is assembled from your inputs using the meta-prompt system alone and displayed directly.
+    </div>
+
+    <div class="field" style="margin-bottom:12px;">
+      <label>Describe the task</label>
+      <textarea id="task-desc" placeholder="e.g. I'm writing architecture docs for a Python-based SFTP ingest system. Core components are a quarantine layer, SHA-256 verification, and an immutable state machine. I need a follow-up prompt that will generate the API reference from the completed code."></textarea>
+    </div>
+
+    <div class="field" style="margin-bottom:4px;">
+      <label>Include prompt components</label>
+    </div>
+    <div class="toggles" id="component-toggles">
+      <div class="toggle active" data-key="role"><div class="toggle-check"><svg width="8" height="6" viewBox="0 0 8 6"><polyline points="1,3 3,5 7,1" stroke="#fff" stroke-width="1.5" fill="none"/></svg></div><span>Role definition</span></div>
+      <div class="toggle active" data-key="context"><div class="toggle-check"><svg width="8" height="6" viewBox="0 0 8 6"><polyline points="1,3 3,5 7,1" stroke="#fff" stroke-width="1.5" fill="none"/></svg></div><span>Context block</span></div>
+      <div class="toggle active" data-key="task"><div class="toggle-check"><svg width="8" height="6" viewBox="0 0 8 6"><polyline points="1,3 3,5 7,1" stroke="#fff" stroke-width="1.5" fill="none"/></svg></div><span>Task instruction</span></div>
+      <div class="toggle active" data-key="format"><div class="toggle-check"><svg width="8" height="6" viewBox="0 0 8 6"><polyline points="1,3 3,5 7,1" stroke="#fff" stroke-width="1.5" fill="none"/></svg></div><span>Output format</span></div>
+      <div class="toggle active" data-key="chain"><div class="toggle-check"><svg width="8" height="6" viewBox="0 0 8 6"><polyline points="1,3 3,5 7,1" stroke="#fff" stroke-width="1.5" fill="none"/></svg></div><span>Chain hook</span></div>
+      <div class="toggle" data-key="guard"><div class="toggle-check"><svg width="8" height="6" viewBox="0 0 8 6"><polyline points="1,3 3,5 7,1" stroke="#fff" stroke-width="1.5" fill="none"/></svg></div><span>Guard rails</span></div>
+    </div>
+
+  </div>
+  <div class="btn-row">
+    <button id="generate-btn">Generate Prompt</button>
+    <span class="status-text" id="status"></span>
+  </div>
+</div>
+
+<!-- OUTPUT -->
+<div id="output-card" class="card">
+  <div class="output-tabs">
+    <div class="tab active" data-tab="anatomy">Prompt Anatomy</div>
+    <div class="tab" data-tab="raw">Full Prompt</div>
+  </div>
+  <div class="tab-panel active" id="panel-anatomy">
+    <div class="anatomy" id="anatomy-blocks"></div>
+  </div>
+  <div class="tab-panel" id="panel-raw">
+    <div class="raw-prompt-wrap">
+      <pre class="raw-prompt" id="raw-text"></pre>
+      <button class="copy-btn" id="copy-btn">Copy</button>
+    </div>
+  </div>
+  <div class="output-footer">
+    <div class="meta-pill"><strong>Model:</strong> <span id="meta-model">—</span></div>
+    <div class="meta-pill"><strong>Domain:</strong> <span id="meta-domain">—</span></div>
+    <div class="meta-pill"><strong>Use:</strong> <span id="meta-use">—</span></div>
+    <div class="meta-pill"><strong>Blocks:</strong> <span id="meta-blocks">—</span></div>
+  </div>
+</div>
+
+<script>
+// ── constants ──
+const MODEL_CONFIG = {
+  claude: {
+    label: 'Claude (Anthropic)',
+    keyLabel: 'Anthropic API Key',
+    keyPlaceholder: 'sk-ant-...',
+    keyNote: 'Get your key at <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>. Keys are never stored or transmitted anywhere except Anthropic\'s API.',
+    endpoint: 'https://api.anthropic.com/v1/messages',
+    model: 'claude-sonnet-4-6',
+  },
+  gpt4: {
+    label: 'GPT-4o (OpenAI)',
+    keyLabel: 'OpenAI API Key',
+    keyPlaceholder: 'sk-...',
+    keyNote: 'Get your key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a>. Keys are never stored or transmitted anywhere except OpenAI\'s API.',
+    endpoint: 'https://api.openai.com/v1/chat/completions',
+    model: 'gpt-4o',
+  },
+  gemini: {
+    label: 'Gemini 2.0 Flash (Google)',
+    keyLabel: 'Google AI API Key',
+    keyPlaceholder: 'AIza...',
+    keyNote: 'Get your key at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>. Keys are never stored or transmitted anywhere except Google\'s API.',
+    endpoint: null, // built dynamically
+    model: 'gemini-2.0-flash',
+  },
+  agnostic: {
+    label: 'Model-Agnostic',
+    keyLabel: null,
+    keyNote: null,
+    endpoint: null,
+    model: null,
+  },
+};
+
+const TAG_CONFIG = {
+  role:    { label: 'ROLE',    cls: 'tag-role',    desc: 'Sets the model\'s identity and authority domain' },
+  context: { label: 'CONTEXT', cls: 'tag-context', desc: 'Frames the situation, prior work, and known state' },
+  task:    { label: 'TASK',    cls: 'tag-task',    desc: 'The primary instruction — what to produce' },
+  format:  { label: 'FORMAT',  cls: 'tag-format',  desc: 'Output structure, length, and delivery constraints' },
+  chain:   { label: 'CHAIN',   cls: 'tag-chain',   desc: 'Hook for feeding this output into the next prompt' },
+  guard:   { label: 'GUARD',   cls: 'tag-guard',   desc: 'Constraints, exclusions, and failure modes to avoid' },
+};
+
+// ── state ──
+let activeToggles = new Set(['role','context','task','format','chain']);
+let rawPromptText = '';
+let keyVisible = false;
+
+// ── model selector — contextual key UI ──
+const modelSelect   = document.getElementById('model-target');
+const keyRow        = document.getElementById('key-row');
+const keyLabel      = document.getElementById('key-label');
+const keyInput      = document.getElementById('api-key');
+const keyNote       = document.getElementById('key-note');
+const agnosticNote  = document.getElementById('agnostic-note');
+
+function updateKeyUI() {
+  const m = modelSelect.value;
+  const cfg = MODEL_CONFIG[m];
+  if (m === 'agnostic') {
+    keyRow.classList.add('hidden');
+    agnosticNote.classList.remove('hidden');
+  } else {
+    keyRow.classList.remove('hidden');
+    agnosticNote.classList.add('hidden');
+    keyLabel.textContent = cfg.keyLabel;
+    keyInput.placeholder = cfg.keyPlaceholder;
+    keyNote.innerHTML = cfg.keyNote;
+    keyInput.value = '';
+  }
+}
+modelSelect.addEventListener('change', updateKeyUI);
+updateKeyUI();
+
+// key show/hide
+document.getElementById('key-toggle-btn').addEventListener('click', () => {
+  keyVisible = !keyVisible;
+  keyInput.type = keyVisible ? 'text' : 'password';
+  document.getElementById('key-toggle-btn').textContent = keyVisible ? 'hide' : 'show';
+});
+
+// ── toggles ──
+document.querySelectorAll('.toggle').forEach(t => {
+  t.addEventListener('click', () => {
+    const key = t.dataset.key;
+    t.classList.toggle('active');
+    if (activeToggles.has(key)) activeToggles.delete(key);
+    else activeToggles.add(key);
+  });
+});
+
+// ── tabs ──
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ── copy ──
+document.getElementById('copy-btn').addEventListener('click', () => {
+  navigator.clipboard.writeText(rawPromptText).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+  });
+});
+
+// ── system prompt builder ──
+function buildMetaSystemPrompt(domain, useCase, model, blocks) {
+  const blockNames = blocks.join(', ');
+  const useCaseMap = {
+    followup:  'a follow-up prompt intended to run after the described task is complete, continuing the work into the next logical step',
+    parallel:  'a parallel prompt that runs alongside the described task on a related sub-problem or different angle of the same goal',
+    decompose: 'a decomposition prompt that breaks the described task into clearly scoped sub-tasks, each independently executable',
+    review:    'a review prompt designed to critique, audit, or QA the output of the described task',
+    chain:     'a chaining prompt that takes the output of the described task as direct input and transforms or extends it',
+  };
+  const modelMap = {
+    claude:   'Claude (Anthropic). Use XML-style tags for structural blocks where helpful. Claude responds well to explicit role framing and step-by-step decomposition.',
+    gpt4:     'GPT-4o or o-series (OpenAI). Use markdown headings for structure. Avoid XML tags. Be explicit about output format in markdown.',
+    gemini:   'Gemini 2.0 Flash (Google). Keep instructions concise and well-structured. Use markdown. Gemini handles direct, minimal instruction well.',
+    agnostic: 'any capable LLM. Write in model-agnostic plain language with no model-specific syntax or tags.',
+  };
+  return `You are an expert prompt engineer. Your job is to analyze a task description and produce a structurally engineered prompt.
+
+The prompt you produce is: ${useCaseMap[useCase] || useCaseMap.followup}.
+
+Target model: ${modelMap[model] || modelMap.agnostic}
+
+Domain: ${domain}
+
+You MUST include these blocks in your output: ${blockNames}.
+
+Respond ONLY with valid JSON. No preamble, no markdown fences, no explanation outside the JSON.
+
+JSON schema:
+{
+  "title": "short descriptive title for this prompt (5-8 words)",
+  "purpose": "one sentence: what this prompt achieves and when to use it",
+  "blocks": [
+    {
+      "type": "role|context|task|format|chain|guard",
+      "content": "the actual prompt text for this block",
+      "note": "one sentence explaining the engineering decision behind this block"
+    }
+  ]
+}
+
+Block definitions:
+- role: defines the model's identity, expertise, and authority for this task
+- context: provides situation, prior work completed, known state, and constraints inherited from the previous task
+- task: the core instruction — precise, unambiguous, scoped
+- format: specifies output structure, length, level of detail, and any required markup or labeling
+- chain: a hook that makes the output of this prompt directly usable as input to the next prompt in the workflow
+- guard: explicit exclusions, failure modes to avoid, and quality bars the output must meet
+
+Make each block substantive and specific to the task described — not generic placeholders. The prompt must be immediately usable.`;
+}
+
+// ── API callers ──
+
+async function callClaude(apiKey, systemPrompt, userMessage, onChunk) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2000,
+      stream: true,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }],
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Anthropic API error ${res.status}`);
+  }
+  let fullText = '';
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    for (const line of chunk.split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6).trim();
+      if (data === '[DONE]') continue;
+      try {
+        const evt = JSON.parse(data);
+        if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+          fullText += evt.delta.text;
+          onChunk(fullText);
+        }
+      } catch {}
+    }
+  }
+  return fullText;
+}
+
+async function callOpenAI(apiKey, systemPrompt, userMessage, onChunk) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      max_tokens: 2000,
+      stream: true,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userMessage },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `OpenAI API error ${res.status}`);
+  }
+  let fullText = '';
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    for (const line of chunk.split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6).trim();
+      if (data === '[DONE]') continue;
+      try {
+        const evt = JSON.parse(data);
+        const delta = evt.choices?.[0]?.delta?.content;
+        if (delta) { fullText += delta; onChunk(fullText); }
+      } catch {}
+    }
+  }
+  return fullText;
+}
+
+async function callGemini(apiKey, systemPrompt, userMessage, onChunk) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?key=${apiKey}&alt=sse`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+      generationConfig: { maxOutputTokens: 2000 },
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Gemini API error ${res.status}`);
+  }
+  let fullText = '';
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    for (const line of chunk.split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6).trim();
+      try {
+        const evt = JSON.parse(data);
+        const text = evt.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) { fullText += text; onChunk(fullText); }
+      } catch {}
+    }
+  }
+  return fullText;
+}
+
+// agnostic: build a structured prompt locally, no API needed
+function buildAgnosticPrompt(domain, useCase, blocks, task) {
+  const useCaseLabel = {
+    followup: 'Follow-up', parallel: 'Parallel', decompose: 'Decompose', review: 'Review', chain: 'Chain'
+  };
+  const blockDefs = {
+    role:    `You are an expert ${domain === 'general' ? 'assistant' : domain + ' specialist'} with deep knowledge of the domain described in the task. Your role is to produce high-quality, accurate, and actionable output.`,
+    context: `The following task has been completed or is underway: "${task}". Use this as the foundation for your work. Do not re-do or duplicate anything already established.`,
+    task:    `Your objective is to ${useCase === 'followup' ? 'continue from where the previous task ended and produce the next logical deliverable' : useCase === 'review' ? 'critically review and audit the output of the previous task' : useCase === 'decompose' ? 'break the described task into clearly scoped, independently executable sub-tasks' : useCase === 'parallel' ? 'address a parallel sub-problem that runs alongside the primary task without duplicating it' : 'take the output of the previous task as direct input and transform or extend it into the next deliverable'}. Be specific, complete, and immediately actionable.`,
+    format:  `Respond in well-structured ${domain === 'code' ? 'code with inline comments and a brief explanation' : 'markdown'}. Use headers to organize sections. Keep the response focused — include only what is required to complete the task. Do not add padding or restating of the instructions.`,
+    chain:   `At the end of your response, include a section titled "## Chain Hook" that contains: (1) a one-sentence summary of what was produced, and (2) a ready-to-paste input block for the next prompt in the workflow, formatted as a labeled code block.`,
+    guard:   `Do not produce placeholder text, incomplete sections, or vague instructions. Do not repeat the context verbatim. If something cannot be determined from the information provided, state the specific assumption being made rather than guessing silently. Output must be production-ready.`,
+  };
+  return {
+    title: `${useCaseLabel[useCase] || 'Follow-up'} prompt — ${domain}`,
+    purpose: `A model-agnostic ${(useCaseLabel[useCase] || 'follow-up').toLowerCase()} prompt for ${domain} work, engineered for immediate use with any capable LLM.`,
+    blocks: blocks.map(key => ({
+      type: key,
+      content: blockDefs[key] || `[${key} block — customize for your task]`,
+      note: TAG_CONFIG[key]?.desc || '',
+    })),
+  };
+}
+
+// ── render ──
+function renderAnatomy(blocks, parsed, isStreaming) {
+  const container = document.getElementById('anatomy-blocks');
+  container.innerHTML = '';
+  if (parsed?.purpose) {
+    const p = document.createElement('div');
+    p.style.cssText = 'padding:4px 2px 12px;font-size:13px;color:var(--muted);line-height:1.6;';
+    p.textContent = parsed.purpose;
+    container.appendChild(p);
+  }
+  blocks.forEach((block, i) => {
+    const cfg = TAG_CONFIG[block.type] || { label: block.type.toUpperCase(), cls: 'tag-role', desc: '' };
+    const el = document.createElement('div');
+    el.className = 'block';
+    const isLast = isStreaming && i === blocks.length - 1;
+    const content = isLast
+      ? escHtml(block.content) + '<span class="cursor"></span>'
+      : escHtml(block.content);
+    el.innerHTML = `
+      <div class="block-header">
+        <span class="block-tag ${cfg.cls}">${cfg.label}</span>
+        <span class="block-label">${escHtml(block.note || cfg.desc)}</span>
+      </div>
+      <div class="block-body">${content}</div>`;
+    container.appendChild(el);
+  });
+}
+
+function showSkeleton() {
+  const c = document.getElementById('anatomy-blocks');
+  c.innerHTML = [40,80,120,60,90].map(h =>
+    `<div class="skel-block" style="height:${h}px;margin-bottom:10px;"></div>`
+  ).join('');
+}
+
+function assembleRaw(blocks) {
+  return blocks.map(b => {
+    const cfg = TAG_CONFIG[b.type] || { label: b.type.toUpperCase() };
+    return `## ${cfg.label}\n${b.content}`;
+  }).join('\n\n');
+}
+
+function updateMeta(model, domain, useCase, count) {
+  const mLabels = { claude:'Claude (Anthropic)', gpt4:'GPT-4o (OpenAI)', gemini:'Gemini 2.0 Flash', agnostic:'Model-Agnostic' };
+  const dLabels = { general:'General', code:'Code', writing:'Writing/Docs', data:'Data', research:'Research', system:'System Design', creative:'Creative', qa:'QA/Testing' };
+  const uLabels = { followup:'Follow-up', parallel:'Parallel', decompose:'Decompose', review:'Review', chain:'Chain' };
+  document.getElementById('meta-model').textContent  = mLabels[model]   || model;
+  document.getElementById('meta-domain').textContent = dLabels[domain]  || domain;
+  document.getElementById('meta-use').textContent    = uLabels[useCase] || useCase;
+  document.getElementById('meta-blocks').textContent = count;
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status-text' + (type ? ' ' + type : '');
+}
+
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function parseJSON(text) {
+  try { return JSON.parse(text); } catch {}
+  try { return JSON.parse(text.replace(/```json|```/g,'').trim()); } catch {}
+  return null;
+}
+
+// ── generate ──
+document.getElementById('generate-btn').addEventListener('click', async () => {
+  const task    = document.getElementById('task-desc').value.trim();
+  const model   = document.getElementById('model-target').value;
+  const domain  = document.getElementById('domain').value;
+  const useCase = document.getElementById('use-case').value;
+  const blocks  = [...activeToggles];
+  const apiKey  = document.getElementById('api-key').value.trim();
+
+  if (!task) { setStatus('Describe the task first.', 'err'); return; }
+  if (blocks.length === 0) { setStatus('Select at least one component.', 'err'); return; }
+  if (model !== 'agnostic' && !apiKey) { setStatus('Paste your API key to continue.', 'err'); return; }
+
+  const btn = document.getElementById('generate-btn');
+  btn.disabled = true;
+  setStatus('Initialising...', 'running');
+
+  const outputCard = document.getElementById('output-card');
+  outputCard.classList.add('visible');
+  showSkeleton();
+
+  try {
+    const systemPrompt = buildMetaSystemPrompt(domain, useCase, model, blocks);
+    const userMessage  = `Task: ${task}`;
+
+    // agnostic — no API call
+    if (model === 'agnostic') {
+      const parsed = buildAgnosticPrompt(domain, useCase, blocks, task);
+      rawPromptText = assembleRaw(parsed.blocks);
+      renderAnatomy(parsed.blocks, parsed, false);
+      document.getElementById('raw-text').textContent = rawPromptText;
+      updateMeta(model, domain, useCase, parsed.blocks.length);
+      setStatus('Done', 'done');
+      btn.disabled = false;
+      return;
+    }
+
+    setStatus('Streaming response...', 'running');
+
+    const onChunk = (text) => {
+      const partial = parseJSON(text);
+      if (partial?.blocks) {
+        renderAnatomy(partial.blocks, partial, true);
+      } else {
+        const c = document.getElementById('anatomy-blocks');
+        c.innerHTML = `<div style="padding:20px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);line-height:1.7;">${escHtml(text)}<span class="cursor"></span></div>`;
+      }
+    };
+
+    let fullText;
+    if (model === 'claude') {
+      fullText = await callClaude(apiKey, systemPrompt, userMessage, onChunk);
+    } else if (model === 'gpt4') {
+      fullText = await callOpenAI(apiKey, systemPrompt, userMessage, onChunk);
+    } else if (model === 'gemini') {
+      fullText = await callGemini(apiKey, systemPrompt, userMessage, onChunk);
+    }
+
+    const parsed = parseJSON(fullText);
+    if (!parsed?.blocks) throw new Error('Could not parse model response as JSON. Check your API key and try again.');
+
+    rawPromptText = assembleRaw(parsed.blocks);
+    renderAnatomy(parsed.blocks, parsed, false);
+    document.getElementById('raw-text').textContent = rawPromptText;
+    updateMeta(model, domain, useCase, parsed.blocks.length);
+    setStatus('Done', 'done');
+
+  } catch (err) {
+    console.error(err);
+    setStatus('Error: ' + (err.message || 'unknown'), 'err');
+    document.getElementById('anatomy-blocks').innerHTML = `<div style="padding:20px;font-size:13px;color:var(--danger);">${escHtml(err.message)}</div>`;
+  }
+
+  btn.disabled = false;
+});
+</script>
+</body>
+</html>
