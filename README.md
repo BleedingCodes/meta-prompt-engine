@@ -80,6 +80,8 @@ Drag `meta-prompt-engine.html` to [netlify.com/drop](https://netlify.com/drop) o
 
 **Browser requirements:** Chrome, Firefox, Safari, or Edge — any version from the last two years. Requires `fetch` with streaming (`ReadableStream`) support, which all modern browsers provide.
 
+![meta-prompt-engine screenshot](meta-prompt-engine.png)
+
 ---
 
 ## Streaming
@@ -97,6 +99,7 @@ All three API callers implement SSE streaming via `ReadableStream`. The response
 ```
 meta-prompt-engine/
 ├── meta-prompt-engine.html   # entire application — HTML, CSS, JS in one file
+├── meta-prompt-engine.png    # UI screenshot
 └── README.md
 ```
 
